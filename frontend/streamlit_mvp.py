@@ -13,13 +13,21 @@ from io import StringIO
 from dotenv import load_dotenv
 load_dotenv()
 
+# Secrets／環境変数から得たパス文字列
+raw_csv_path = os.getenv("KEN_ALL_CSV_PATH") or st.secrets["KEN_ALL_CSV_PATH"]
+
+# 相対パスならルート直下からの絶対パスに変換
+if not os.path.isabs(raw_csv_path):
+    KEN_ALL_CSV_PATH = os.path.join(ROOT, raw_csv_path)
+else:
+    KEN_ALL_CSV_PATH = raw_csv_path
+
+# スクリプト内部でも os.getenv で拾えるように
+os.environ["KEN_ALL_CSV_PATH"] = KEN_ALL_CSV_PATH
+
 # Streamlit Cloud では st.secrets から取得
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or st.secrets.get("GOOGLE_APPLICATION_CREDENTIALS")
-KEN_ALL_CSV_PATH = os.getenv("KEN_ALL_CSV_PATH") or st.secrets["KEN_ALL_CSV_PATH"]
-
-# ここで export しておく
-os.environ["KEN_ALL_CSV_PATH"] = KEN_ALL_CSV_PATH
 
 # カスタムモジュールのインポート
 from scripts.extract_info_from_pdf import ocr_pdf, extract_registry_office
