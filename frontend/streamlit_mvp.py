@@ -4,8 +4,6 @@ import os, sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 
-os.environ["PATH"] += os.pathsep + "/app/.apt/usr/bin"
-
 import os
 import streamlit as st
 import shutil
