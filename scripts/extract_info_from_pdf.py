@@ -35,7 +35,7 @@ def ocr_pdf(pdf_path: str) -> str:
     all_text = []
     with TemporaryDirectory() as tempdir:
         print("✅ PDF → 画像変換中...")
-        images = convert_from_path(pdf_path, dpi=300, output_folder=tempdir, fmt='png')
+        images = convert_from_path(pdf_path, dpi=300, output_folder=tempdir, poppler_path="/app/.apt/usr/bin", fmt='png')
         for idx, image in enumerate(images, 1):
             image_path = os.path.join(tempdir, f"page_{idx}.png")
             image.save(image_path, "PNG")
