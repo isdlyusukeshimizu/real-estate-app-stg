@@ -13,10 +13,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── OpenAI クライアントの初期化 ──
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
-# OpenAIの初期化（セキュリティのため環境変数使用推奨）
-client = OpenAI(api_key=OPENAI_API_KEY)  # ← セキュリティ上、環境変数での管理が推奨
+# ── Google Vision 用認証情報のセットアップ ──
+# streamlit_mvp.py で os.environ["GCP_SA_INFO_JSON"] にセットした文字列 JSON を読み込む
+sa_info_json = os.getenv("GCP_SA_INFO_JSON")
+if sa_info_json:
+    sa_info = json.loads(sa_info_json)
+    creds = service_account.Credentials.from_service_account_info(sa_info)
+    vision_client = vision.ImageAnnotatorClient(credentials=creds)
+else:
+    # ローカル開発時に GOOGLE_APPLICATION_CREDENTIALS 環境変数経由で読み込みたい場合
+    vision_client = vision.ImageAnnotatorClient()
 
 def ocr_pdf(pdf_path: str) -> str:
     client_vision = vision.ImageAnnotatorClient()

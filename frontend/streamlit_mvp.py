@@ -8,6 +8,7 @@ import os
 import streamlit as st
 import pandas as pd
 from io import StringIO
+import json
 
 # ローカルでの環境変数読み込み（開発用）
 from dotenv import load_dotenv
@@ -27,7 +28,8 @@ os.environ["KEN_ALL_CSV_PATH"] = KEN_ALL_CSV_PATH
 
 # Streamlit Cloud では st.secrets から取得
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or st.secrets.get("GOOGLE_APPLICATION_CREDENTIALS")
+os.environ["GCP_SA_INFO_JSON"] = json.dumps(st.secrets["gcp_service_account"])
+
 
 # カスタムモジュールのインポート
 from scripts.extract_info_from_pdf import ocr_pdf, extract_registry_office
