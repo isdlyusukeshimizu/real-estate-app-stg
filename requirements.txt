@@ -13,7 +13,10 @@ pandas
 playwright
 google-cloud-vision
 pdf2image
-openai
 markitdown
 holidays
 markitdown[all]
+openai>=1.3.5
+httpx==0.27.0
+httpcore==0.18.0
+Pillow
