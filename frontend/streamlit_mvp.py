@@ -28,7 +28,12 @@ os.environ["KEN_ALL_CSV_PATH"] = KEN_ALL_CSV_PATH
 
 # Streamlit Cloud では st.secrets から取得
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-os.environ["GCP_SA_INFO_JSON"] = json.dumps(st.secrets["gcp_service_account"])
+
+# Secrets から GCP サービスアカウント情報を取得し、JSON文字列化して環境変数へ
+sa_info = st.secrets["gcp_service_account"]
+# AttrDict を通常の dict に変換してから JSON に
+os.environ["GCP_SA_INFO_JSON"] = json.dumps(dict(sa_info))
+
 
 
 # カスタムモジュールのインポート
