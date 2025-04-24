@@ -1,0 +1,19 @@
+# project_root/requirements.txt
+fastapi
+uvicorn[standard]
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+python-dotenv
+python-multipart               # FastAPIのファイルアップロード
+requests
+streamlit
+streamlit-aggrid
+pandas
+playwright
+google-cloud-vision
+pdf2image
+openai
+markitdown
+holidays
+markitdown[all]
