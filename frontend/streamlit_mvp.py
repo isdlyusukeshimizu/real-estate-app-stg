@@ -6,6 +6,7 @@ sys.path.insert(0, ROOT)
 
 import os
 import streamlit as st
+import shutil
 import pandas as pd
 from io import StringIO
 import json
@@ -47,6 +48,7 @@ from scripts.merge_data import merge_data
 st.set_page_config(page_title="不動産相続情報 MVP テスト", layout="wide")
 
 st.title("不動産相続情報 MVP テスト")
+st.text(f"pdfinfo binary: {shutil.which('pdfinfo')}")
 
 # PDF アップロード
 uploaded = st.file_uploader("受付台帳 PDF をアップロード", type="pdf")
