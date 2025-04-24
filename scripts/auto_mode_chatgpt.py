@@ -68,7 +68,10 @@ def download_owner_info(page, address: str) -> None:
 
 
 def login_and_download_all(playwright, address_list):
-    browser = playwright.chromium.launch(headless=False)
+    browser = playwright.chromium.launch(
+        executable_path="/usr/bin/chromium",  # システムに入った Chromium を指定
+        headless=True                         # サーバでは headless 推奨
+    )
     context = browser.new_context(accept_downloads=True)
     page = context.new_page()
     page.goto("https://xn--udk1b673pynnijsb3h8izqr1a.com/login.php")
@@ -103,7 +106,10 @@ def run_auto_mode(pdf_path: str = "./uploads/ocr_doc_test-1-3-3.pdf") -> list[st
     saved_paths = []
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=False)
+        browser = playwright.chromium.launch(
+            executable_path="/usr/bin/chromium",  # システムに入った Chromium を指定
+            headless=True                         # サーバでは headless 推奨
+        )
         context = browser.new_context(accept_downloads=True)
         page = context.new_page()
         page.goto("https://xn--udk1b673pynnijsb3h8izqr1a.com/login.php")
