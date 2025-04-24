@@ -11,6 +11,7 @@ import io
 import re
 from dotenv import load_dotenv
 import json
+from google.oauth2 import service_account
 
 load_dotenv()
 
