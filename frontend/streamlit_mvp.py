@@ -1,3 +1,8 @@
+# frontend/streamlit_mvp.py の一番上に追加
+import os, sys
+# このファイル（streamlit_mvp.py）の親ディレクトリ (= project_root) を path に追加
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import os
 import streamlit as st
 import pandas as pd
