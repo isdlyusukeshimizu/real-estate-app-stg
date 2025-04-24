@@ -12,6 +12,8 @@ import re
 from dotenv import load_dotenv
 import json
 from google.oauth2 import service_account
+from google.cloud.vision_v1 import ImageAnnotatorClient
+from google.cloud.vision_v1.types import Image
 
 load_dotenv()
 
@@ -31,7 +33,7 @@ else:
     vision_client = vision.ImageAnnotatorClient()
 
 def ocr_pdf(pdf_path: str) -> str:
-    client_vision = vision.ImageAnnotatorClient()
+    client_vision = vision_client
     all_text = []
     with TemporaryDirectory() as tempdir:
         print("✅ PDF → 画像変換中...")
@@ -42,7 +44,7 @@ def ocr_pdf(pdf_path: str) -> str:
             print(f"📄 Page {idx} OCR実行中...")
             with open(image_path, "rb") as image_file:
                 content = image_file.read()
-            response = client_vision.document_text_detection(image=vision.Image(content=content))
+            response = client_vision.document_text_detection(image=Image(content=content))
             if response.error.message:
                 print(f"❌ Page {idx} OCR失敗: {response.error.message}")
             else:
@@ -60,7 +62,7 @@ def extract_registry_office(text_data: str) -> str:
 {text_data}
 【テキスト終了】
 """
-    response = client.chat.completions.create(
+    response = openai_client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0
@@ -81,7 +83,7 @@ def extract_addresses(text_data: str) -> list[str]:
 {text_data}
 【テキスト終了】
 """
-    response = client.chat.completions.create(
+    response = openai_client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0
