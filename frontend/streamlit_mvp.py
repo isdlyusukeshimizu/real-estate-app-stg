@@ -15,7 +15,10 @@ load_dotenv()
 # Streamlit Cloud では st.secrets から取得
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or st.secrets.get("GOOGLE_APPLICATION_CREDENTIALS")
-KEN_ALL_CSV_PATH = os.getenv("KEN_ALL_CSV_PATH") or st.secrets.get("KEN_ALL_CSV_PATH")
+KEN_ALL_CSV_PATH = os.getenv("KEN_ALL_CSV_PATH") or st.secrets["KEN_ALL_CSV_PATH"]
+
+# ここで export しておく
+os.environ["KEN_ALL_CSV_PATH"] = KEN_ALL_CSV_PATH
 
 # カスタムモジュールのインポート
 from scripts.extract_info_from_pdf import ocr_pdf, extract_registry_office
