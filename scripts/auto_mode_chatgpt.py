@@ -127,9 +127,9 @@ def run_auto_mode(pdf_path: str = "./uploads/ocr_doc_test-1-3-3.pdf") -> list[st
             print(f"\n▶️ ({idx+1}/{len(address_list)}) 処理開始: {address}")
             try:
                 now = datetime.now()
-                if not is_within_service_hours(now):
-                    print(f"⚠️ 時間外スキップ: {address}")
-                    continue
+                # if not is_within_service_hours(now):
+                #     print(f"⚠️ 時間外スキップ: {address}")
+                #     continue
 
                 page.get_by_role("gridcell", name="不動産登記情報取得").locator("span").click()
                 time.sleep(1)
