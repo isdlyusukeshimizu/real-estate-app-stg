@@ -99,11 +99,17 @@ def login_and_download_all(playwright, address_list):
     browser.close()
 
 # 最後の方に追加
-def run_auto_mode(pdf_path: str = "./uploads/ocr_doc_test-1-3-3.pdf") -> list[str]:
+def run_auto_mode(
+    pdf_path: str = "./uploads/mvp_ledger.pdf",
+    save_dir: str = "downloads"
+) -> list[str]:
     cleaned_addresses = get_cleaned_addresses(pdf_path)
     address_list = sorted(set(cleaned_addresses))
 
-    saved_paths = []
+    save_path_root = Path(save_dir)
+    save_path_root.mkdir(parents=True, exist_ok=True)
+
+    saved_paths: list[str] = []
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
@@ -112,9 +118,10 @@ def run_auto_mode(pdf_path: str = "./uploads/ocr_doc_test-1-3-3.pdf") -> list[st
         )
         context = browser.new_context(accept_downloads=True)
         page = context.new_page()
+
+        # ログイン部分
         page.goto("https://xn--udk1b673pynnijsb3h8izqr1a.com/login.php")
         time.sleep(1)
-
         page.locator("input[name=\"id\"]").fill("NDVM3653")
         page.locator("input[name=\"id\"]").press("Tab")
         time.sleep(1)
@@ -123,6 +130,7 @@ def run_auto_mode(pdf_path: str = "./uploads/ocr_doc_test-1-3-3.pdf") -> list[st
         page.get_by_role("button", name="利用規約に同意してログイン").click()
         time.sleep(1)
 
+        # 3) 各地番ごとにPDFダウンロード
         for idx, address in enumerate(address_list):
             print(f"\n▶️ ({idx+1}/{len(address_list)}) 処理開始: {address}")
             try:
@@ -157,12 +165,10 @@ def run_auto_mode(pdf_path: str = "./uploads/ocr_doc_test-1-3-3.pdf") -> list[st
                     frame2.get_by_role("button", name="はい").click()
                 download = download_info.value
 
-                save_dir = Path("/mnt/c/Users/shish/Documents")
-                save_dir.mkdir(parents=True, exist_ok=True)
-                save_path = save_dir / f"{address.replace(' ', '_').replace('/', '-')}.pdf"
-                download.save_as(str(save_path))
-                saved_paths.append(str(save_path))
-
+                filename = address.replace(" ", "_").replace("/", "-") + ".pdf"
+                out_path = save_path_root / filename
+                download.save_as(str(out_path))
+                saved_paths.append(str(out_path))
                 print(f"✅ Downloaded PDF for: {address}")
 
             except Exception as e:

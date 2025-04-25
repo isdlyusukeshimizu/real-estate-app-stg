@@ -73,7 +73,9 @@ if st.button("パイプライン実行→CSV 生成"):
 
         # 2. 地番抽出 & PDF ダウンロード
         st.write("▶️ 地番抽出 & PDF ダウンロード")
-        pdf_paths = run_auto_mode(pdf_path)
+        save_dir = "downloads"
+        os.makedirs(save_dir, exist_ok=True)
+        pdf_paths = run_auto_mode(pdf_path, save_dir=save_dir)  # ← 引数追加
         st.success(f"PDF ダウンロード: {len(pdf_paths)} 件")
 
         # 3. 所有者情報抽出
