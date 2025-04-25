@@ -47,7 +47,7 @@ from scripts.merge_data import merge_data
 # ページ設定
 st.set_page_config(page_title="不動産相続情報 MVP テスト", layout="wide")
 
-st.title("不動産相続情報 PoC テスト")
+st.title("不動産相続情報 PoC")
 # st.text(f"pdfinfo binary: {shutil.which('pdfinfo')}")
 
 # PDF アップロード
