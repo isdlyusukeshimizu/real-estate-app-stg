@@ -12,11 +12,11 @@ from io import StringIO
 import json
 
 # ローカルでの環境変数読み込み（開発用）
-from dotenv import load_dotenv
-load_dotenv()
+# from dotenv import load_dotenv
+# load_dotenv()
 
 # Secrets／環境変数から得たパス文字列
-raw_csv_path = os.getenv("KEN_ALL_CSV_PATH") or st.secrets["KEN_ALL_CSV_PATH"]
+raw_csv_path = st.secrets["KEN_ALL_CSV_PATH"]
 
 # 相対パスならルート直下からの絶対パスに変換
 if not os.path.isabs(raw_csv_path):
@@ -84,6 +84,7 @@ if st.button("パイプライン実行→CSV 生成"):
         # 4. 郵便番号取得
         st.write("▶️ 郵便番号取得")
         zip_records = []
+        st.write("df_owner columns:", df_owner.columns.tolist())
         for addr in df_owner["所有者住所"].unique():
             zip_records.append({
                 "所有者住所": addr,
