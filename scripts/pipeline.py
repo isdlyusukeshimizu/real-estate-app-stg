@@ -10,10 +10,11 @@ from scripts.concat_markitdown_extract_zipcode import get_zipcode
 from scripts.merge_data import merge_data
 from dotenv import load_dotenv
 import os
+import streamlit as st
 
-load_dotenv()
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# secrets から API キーを取って環境変数にセット
+OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 def extract_owner_info(pdf_paths):
     """
@@ -57,7 +58,6 @@ def extract_owner_info(pdf_paths):
         prop_m = re.search(r"不動産所在地:\s*(.+)", output)
         if name_m and addr_m and prop_m:
             records.append({
-                "PDFファイル": pdf_path,
                 "氏名": name_m.group(1).strip(),
                 "所有者住所": addr_m.group(1).strip(),
                 "不動産所在地": prop_m.group(1).strip()

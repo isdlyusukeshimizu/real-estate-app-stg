@@ -47,8 +47,8 @@ from scripts.merge_data import merge_data
 # ページ設定
 st.set_page_config(page_title="不動産相続情報 MVP テスト", layout="wide")
 
-st.title("不動産相続情報 MVP テスト")
-st.text(f"pdfinfo binary: {shutil.which('pdfinfo')}")
+st.title("不動産相続情報 PoC テスト")
+# st.text(f"pdfinfo binary: {shutil.which('pdfinfo')}")
 
 # PDF アップロード
 uploaded = st.file_uploader("受付台帳 PDF をアップロード", type="pdf")
@@ -86,7 +86,7 @@ if st.button("パイプライン実行→CSV 生成"):
         # 4. 郵便番号取得
         st.write("▶️ 郵便番号取得")
         zip_records = []
-        st.write("df_owner columns:", df_owner.columns.tolist())
+        # st.write("df_owner columns:", df_owner.columns.tolist())
         for addr in df_owner["所有者住所"].unique():
             zip_records.append({
                 "所有者住所": addr,
