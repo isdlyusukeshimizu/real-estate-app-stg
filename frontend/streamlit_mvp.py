@@ -1,48 +1,37 @@
-# frontend/streamlit_mvp.py の一番上に追加
-import os, sys
-# プロジェクトルートをパスに追加（既に入っていれば不要ですが、念のため）
+import os, sys, json
+
+# ── VSCode/Streamlit CLI からの相対パス解決──
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 
-import os
 import streamlit as st
 import shutil
 import pandas as pd
-from io import StringIO
-import json
 
-# ローカルでの環境変数読み込み（開発用）
-# from dotenv import load_dotenv
-# load_dotenv()
+# 1. KEN_ALL.CSV (data/x-ken-all.csv) を環境変数にセット
+csv_rel = os.path.join("data", "x-ken-all.csv")
+csv_abspath = os.path.join(ROOT, csv_rel)
+os.environ["KEN_ALL_CSV_PATH"] = csv_abspath
 
-# Secrets／環境変数から得たパス文字列
-raw_csv_path = st.secrets["KEN_ALL_CSV_PATH"]
+# 2. OpenAI APIキーを secrets から取得して環境変数にセット
+openai_key = st.secrets["OPENAI_API_KEY"]
+os.environ["OPENAI_API_KEY"] = openai_key
 
-# 相対パスならルート直下からの絶対パスに変換
-if not os.path.isabs(raw_csv_path):
-    KEN_ALL_CSV_PATH = os.path.join(ROOT, raw_csv_path)
-else:
-    KEN_ALL_CSV_PATH = raw_csv_path
+# 3. GCP サービスアカウント情報を一時ファイルに書き出し
+gcp_sa = st.secrets["gcp_service_account"]  # TOML 内で { type=..., project_id=..., ... } の dict
+creds_path = os.path.join(ROOT, "gcp_creds.json")
+with open(creds_path, "w") as f:
+    json.dump(gcp_sa, f)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds_path
 
-# スクリプト内部でも os.getenv で拾えるように
-os.environ["KEN_ALL_CSV_PATH"] = KEN_ALL_CSV_PATH
+# ── ここまでで各スクリプトが必要とする環境変数をセット完了 ──
 
-# Streamlit Cloud では st.secrets から取得
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or st.secrets.get("OPENAI_API_KEY")
-
-# Secrets から GCP サービスアカウント情報を取得し、JSON文字列化して環境変数へ
-sa_info = st.secrets["gcp_service_account"]
-# AttrDict を通常の dict に変換してから JSON に
-os.environ["GCP_SA_INFO_JSON"] = json.dumps(dict(sa_info))
-
-
-
-# カスタムモジュールのインポート
+# カスタムモジュールをインポート
 from scripts.extract_info_from_pdf import ocr_pdf, extract_registry_office
-from scripts.auto_mode_chatgpt import run_auto_mode
-from scripts.pipeline import extract_owner_info
+from scripts.auto_mode_chatgpt    import run_auto_mode
+from scripts.pipeline             import extract_owner_info
 from scripts.concat_markitdown_extract_zipcode import get_zipcode
-from scripts.merge_data import merge_data
+from scripts.merge_data           import merge_data
 
 # ページ設定
 st.set_page_config(page_title="不動産相続情報 MVP テスト", layout="wide")
