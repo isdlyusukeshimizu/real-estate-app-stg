@@ -48,7 +48,7 @@ from scripts.merge_data import merge_data
 st.set_page_config(page_title="不動産相続情報取得システム", layout="wide")
 
 st.title("不動産相続情報 PoC")
-# st.text(f"pdfinfo binary: {shutil.which('pdfinfo')}")
+st.text(f"土日祝日は18時～翌朝8時30分、平日は23時～翌朝8時30分、年末年始は終日(12/29～1/3)の時間は本システムの利用が出来ません。")
 
 # PDF アップロード
 uploaded = st.file_uploader("受付台帳 PDF をアップロード", type="pdf")
