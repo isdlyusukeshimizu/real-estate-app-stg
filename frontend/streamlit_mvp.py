@@ -1,19 +1,12 @@
-# frontend/streamlit_mvp.py の一番上に追加
 import os, sys
-# プロジェクトルートをパスに追加（既に入っていれば不要ですが、念のため）
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 
-import os
 import streamlit as st
 import shutil
 import pandas as pd
 from io import StringIO
 import json
-
-# ローカルでの環境変数読み込み（開発用）
-# from dotenv import load_dotenv
-# load_dotenv()
 
 # Secrets／環境変数から得たパス文字列
 raw_csv_path = st.secrets["KEN_ALL_CSV_PATH"]
