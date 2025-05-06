@@ -181,6 +181,7 @@ def login_page():
 def signup_page():
     st.title("新規登録")
     with st.form("signup_form"):
+        name = st.text_input("氏名")
         email = st.text_input("メールアドレス")
         password = st.text_input("パスワード", type="password")
         password2 = st.text_input("パスワード（確認）", type="password")
@@ -188,7 +189,7 @@ def signup_page():
     if submitted:
         if password != password2:
             st.error("パスワードが一致しません。再度確認してください。")
-        elif register_user(email, password):
+        elif register_user(name, email, password):
             st.success("登録が完了しました。ログインしてください。")
         else:
             st.error("このメールアドレスはすでに登録されています。")
