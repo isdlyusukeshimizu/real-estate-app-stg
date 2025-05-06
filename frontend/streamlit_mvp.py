@@ -7,6 +7,7 @@ import shutil
 import pandas as pd
 from io import StringIO
 import json
+import sqlite3
 
 # Secrets／環境変数から得たパス文字列
 raw_csv_path = st.secrets["KEN_ALL_CSV_PATH"]
@@ -37,73 +38,225 @@ from scripts.pipeline import extract_owner_info
 from scripts.concat_markitdown_extract_zipcode import get_zipcode
 from scripts.merge_data import merge_data
 
-# ページ設定
-st.set_page_config(page_title="不動産相続情報取得システム", layout="wide")
+# --- データベース初期化 ---
+def init_db():
+    conn = sqlite3.connect('data.db', check_same_thread=False)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            password TEXT,
+            role TEXT
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS lists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT,
+            registry_office TEXT,
+            status TEXT,
+            assigned_to TEXT
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS billing (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT,
+            description TEXT,
+            amount REAL
+        )
+    ''')
+    conn.commit()
+    return conn
 
+conn = init_db()
+
+# --- 認証ヘルパー ---
+def register_user(email, password):
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users (email, password, role) VALUES (?, ?, ?)", (email, password, 'member'))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+
+
+def authenticate_user(email, password):
+    c = conn.cursor()
+    c.execute("SELECT role FROM users WHERE email=? AND password=?", (email, password))
+    row = c.fetchone()
+    if row:
+        return row[0]
+    return None
+
+
+
+# --- アプリ起動 ---
+st.set_page_config(page_title="不動産相続情報取得システム", layout="wide")
 st.title("不動産相続情報システム")
 st.text(f"土日祝日は18時～翌朝8時30分、平日は23時～翌朝8時30分、年末年始は終日(12/29～1/3)の時間は本システムの利用が出来ません。")
+if 'user' not in st.session_state:
+    st.session_state['user'] = None
+    st.session_state['role'] = None
 
-# PDF アップロード
-uploaded = st.file_uploader("受付台帳 PDF をアップロード", type="pdf")
-if not uploaded:
-    st.info("PDF をアップロードしてください")
-    st.stop()
+# --- 認証ページ ---
+def login_page():
+    st.title("ログイン")
+    with st.form("login_form"):
+        email = st.text_input("メールアドレス")
+        password = st.text_input("パスワード", type="password")
+        submitted = st.form_submit_button("ログイン")
+    if submitted:
+        role = authenticate_user(email, password)
+        if role:
+            st.session_state['user'] = email
+            st.session_state['role'] = role
+            st.experimental_rerun()
+        else:
+            st.error("認証に失敗しました。メールアドレスかパスワードを確認してください。")
 
-# ボタン押下でパイプライン実行
-if st.button("パイプライン実行→CSV 生成"):
-    with st.spinner("処理中です。しばらくお待ちください..."):
-        # アップロード PDF を保存
-        os.makedirs("uploads", exist_ok=True)
-        pdf_path = os.path.join("uploads", "mvp_ledger.pdf")
-        with open(pdf_path, "wb") as f:
-            f.write(uploaded.getbuffer())
+def signup_page():
+    st.title("新規登録")
+    with st.form("signup_form"):
+        email = st.text_input("メールアドレス")
+        password = st.text_input("パスワード", type="password")
+        password2 = st.text_input("パスワード（確認）", type="password")
+        submitted = st.form_submit_button("登録")
+    if submitted:
+        if password != password2:
+            st.error("パスワードが一致しません。再度確認してください。")
+        elif register_user(email, password):
+            st.success("登録が完了しました。ログインしてください。")
+        else:
+            st.error("このメールアドレスはすでに登録されています。")
 
-        # 1. OCR & 登記所抽出
-        st.write("▶️ OCR → 登記所抽出")
-        text = ocr_pdf(pdf_path)
-        registry_office = extract_registry_office(text)
-        st.success(f"担当法務局: {registry_office}")
+# --- ダッシュボード ---
+def dashboard_page():
+    st.title("ダッシュボード")
+    # 月別リスト件数
+    df = pd.read_sql_query(
+        "SELECT strftime('%Y-%m', created_at) AS month, COUNT(*) AS count FROM lists GROUP BY month", conn)
+    if not df.empty:
+        df = df.rename(columns={'month':'年月', 'count':'件数'}).set_index('年月')
+        st.bar_chart(df)
+    else:
+        st.info("まだ取得リストがありません。")
 
-        # 2. 地番抽出 & PDF ダウンロード
-        st.write("▶️ 地番抽出 & PDF ダウンロード")
-        save_dir = "downloads"
-        os.makedirs(save_dir, exist_ok=True)
-        pdf_paths = run_auto_mode(pdf_path, save_dir=save_dir)  # ← 引数追加
-        st.success(f"PDF ダウンロード: {len(pdf_paths)} 件")
+# --- 取得リスト管理 ---
+def list_management_page():
+    st.title("取得リスト管理")
+    uploaded = st.file_uploader("受付台帳 PDF をアップロード", type='pdf')
+    if uploaded:
+        if st.button("パイプライン実行 → CSV生成 & リスト登録"):
+            with st.spinner("処理中... 少々お待ちください..."):
+                # 保存
+                os.makedirs('uploads', exist_ok=True)
+                pdf_path = os.path.join('uploads', 'uploaded_ledger.pdf')
+                with open(pdf_path, 'wb') as f:
+                    f.write(uploaded.getbuffer())
+                # パイプライン
+                text = ocr_pdf(pdf_path)
+                registry_office = extract_registry_office(text)
+                pdf_paths = run_auto_mode(pdf_path, save_dir='downloads')
+                df_owner = extract_owner_info(pdf_paths)
+                # 郵便番号
+                zip_records = []
+                for addr in df_owner['所有者住所'].unique():
+                    zip_records.append({'所有者住所':addr, '郵便番号':get_zipcode(addr)})
+                df_zip = pd.DataFrame(zip_records)
+                # CSV出力
+                csv_path = os.path.join('uploads', 'final_output.csv')
+                df_owner.to_csv('uploads/owner.csv', index=False, encoding='utf-8-sig')
+                df_zip.to_csv('uploads/zip.csv', index=False, encoding='utf-8-sig')
+                merge_data('uploads/owner.csv','uploads/zip.csv', csv_path, registry_office)
+                st.success("最終 CSV が生成されました。")
+                with open(csv_path, 'rb') as f:
+                    st.download_button("CSVダウンロード", data=f, file_name='output.csv')
+                # DB登録
+                now = datetime.now().isoformat()
+                c=conn.cursor()
+                c.execute("INSERT INTO lists (created_at, registry_office, status, assigned_to) VALUES (?,?,?,?)", 
+                          (now, registry_office, '未アタック', st.session_state['user']))
+                conn.commit()
+                st.success("取得リストに登録しました。")
+    # 一覧
+    st.subheader("一覧")
+    df_list = pd.read_sql_query("SELECT * FROM lists", conn)
+    if not df_list.empty:
+        for i,row in df_list.iterrows():
+            cols = st.columns([1,2,2,2,2])
+            cols[0].write(row['id'])
+            cols[1].write(row['created_at'])
+            cols[2].selectbox("ステータス", ['未アタック','アタック済み','アポ獲得','成約','失注'], index=['未アタック','アタック済み','アポ獲得','成約','失注'].index(row['status']), key=f"status_{row['id']}", on_change=lambda rid=row['id']: update_list_status(rid))
+            cols[3].text_input("担当者", value=row['assigned_to'], key=f"assignee_{row['id']}", on_change=lambda rid=row['id']: update_list_assignee(rid))
+    else:
+        st.info("登録済みの取得リストがありません。")
 
-        # 3. 所有者情報抽出
-        st.write("▶️ 所有者情報抽出")
-        df_owner = extract_owner_info(pdf_paths)
-        st.dataframe(df_owner)
+# ステータス更新
 
-        # 4. 郵便番号取得
-        st.write("▶️ 郵便番号取得")
-        zip_records = []
-        # st.write("df_owner columns:", df_owner.columns.tolist())
-        for addr in df_owner["所有者住所"].unique():
-            zip_records.append({
-                "所有者住所": addr,
-                "郵便番号": get_zipcode(addr)
-            })
-        df_zip = pd.DataFrame(zip_records)
-        st.dataframe(df_zip)
+def update_list_status(rid):
+    new_status = st.session_state[f"status_{rid}"]
+    conn.execute("UPDATE lists SET status=? WHERE id=?", (new_status, rid))
+    conn.commit()
 
-        # 5. CSV 結合
-        st.write("▶️ CSV 結合")
-        owner_csv = os.path.join("uploads", "owner_info.csv")
-        zip_csv = os.path.join("uploads", "zipcode_info.csv")
-        final_csv = os.path.join("uploads", "final_output.csv")
-        df_owner.to_csv(owner_csv, index=False, encoding="utf-8-sig")
-        df_zip.to_csv(zip_csv, index=False, encoding="utf-8-sig")
+# 担当者更新
 
-        merge_data(owner_csv, zip_csv, final_csv, registry_office)
-        st.success("✅ 最終 CSV 生成完了")
+def update_list_assignee(rid):
+    new_assignee = st.session_state[f"assignee_{rid}"]
+    conn.execute("UPDATE lists SET assigned_to=? WHERE id=?", (new_assignee, rid))
+    conn.commit()
 
-        # ダウンロードボタン
-        with open(final_csv, "rb") as f:
-            st.download_button(
-                label="最終 CSV をダウンロード",
-                data=f,
-                file_name="final_output.csv",
-                mime="text/csv"
-            )
+# --- 請求管理 ---
+def billing_page():
+    st.title("請求管理")
+    df_billing = pd.read_sql_query("SELECT * FROM billing", conn)
+    if not df_billing.empty:
+        st.dataframe(df_billing)
+    with st.form("billing_form"):
+        desc = st.text_input("請求内容")
+        amt = st.number_input("金額", min_value=0.0, format="%.2f")
+        submitted = st.form_submit_button("請求作成")
+    if submitted:
+        now = datetime.now().isoformat()
+        conn.execute("INSERT INTO billing (created_at, description, amount) VALUES (?,?,?)", (now, desc, amt))
+        conn.commit()
+        st.success("請求を登録しました。")
+        st.experimental_rerun()
+
+# --- メンバー管理 ---
+def member_page():
+    st.title("メンバー管理")
+    df_users = pd.read_sql_query("SELECT * FROM users", conn)
+    for i,row in df_users.iterrows():
+        cols = st.columns([3,2])
+        cols[0].write(row['email'])
+        cols[1].selectbox("権限", ['member','owner'], index=['member','owner'].index(row['role']), key=f"role_{row['id']}", on_change=lambda uid=row['id']: update_user_role(uid))
+
+
+def update_user_role(uid):
+    new_role = st.session_state[f"role_{uid}"]
+    conn.execute("UPDATE users SET role=? WHERE id=?", (new_role, uid))
+    conn.commit()
+
+# --- ページルーティング ---
+if st.session_state['user'] is None:
+    page = st.sidebar.radio("Navigate", ["ログイン", "新規登録"] )
+    if page == "ログイン":
+        login_page()
+    else:
+        signup_page()
+else:
+    menu = ["ダッシュボード", "取得リスト管理", "請求管理"]
+    if st.session_state['role'] == 'owner':
+        menu.append('メンバー管理')
+    choice = st.sidebar.selectbox("メニュー", menu)
+    if choice == "ダッシュボード":
+        dashboard_page()
+    elif choice == "取得リスト管理":
+        list_management_page()
+    elif choice == "請求管理":
+        billing_page()
+    elif choice == "メンバー管理":
+        member_page()
