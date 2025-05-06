@@ -54,6 +54,7 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
             email TEXT UNIQUE,
             password_hash TEXT,
             role TEXT
