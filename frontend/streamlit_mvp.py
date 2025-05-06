@@ -36,6 +36,7 @@ os.environ["GCP_SA_INFO_JSON"] = json.dumps(dict(sa_info))
 
 # --- 定数 ---
 SECRET_KEY = st.secrets.get("JWT_SECRET_KEY")
+JWT_ALGORITHM = 'HS256'
 JWT_EXPIRE_MINUTES = 60
 
 # カスタムモジュールのインポート
