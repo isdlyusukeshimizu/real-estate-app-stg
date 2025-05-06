@@ -8,6 +8,8 @@ import pandas as pd
 from io import StringIO
 import json
 import sqlite3
+import datetime
+import hashlib
 
 # Secrets／環境変数から得たパス文字列
 raw_csv_path = st.secrets["KEN_ALL_CSV_PATH"]
@@ -42,11 +44,12 @@ from scripts.merge_data import merge_data
 def init_db():
     conn = sqlite3.connect('data.db', check_same_thread=False)
     c = conn.cursor()
+    # ユーザーテーブル：パスワードは SHA256 ハッシュを保存
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE,
-            password TEXT,
+            password_hash TEXT,
             role TEXT
         )
     ''')
@@ -73,6 +76,9 @@ def init_db():
 conn = init_db()
 
 # --- 認証ヘルパー ---
+def hash_password(password: str) -> str:
+    """パスワードを SHA256 でハッシュ化して返す"""
+    return hashlib.sha256(password.encode('utf-8')).hexdigest()
 def register_user(email, password):
     c = conn.cursor()
     try:
@@ -240,7 +246,7 @@ def update_user_role(uid):
     conn.execute("UPDATE users SET role=? WHERE id=?", (new_role, uid))
     conn.commit()
 
-# --- ページルーティング ---
+# --- ページルーティング & ログアウト ---
 if st.session_state['user'] is None:
     page = st.sidebar.radio("Navigate", ["ログイン", "新規登録"] )
     if page == "ログイン":
@@ -248,6 +254,12 @@ if st.session_state['user'] is None:
     else:
         signup_page()
 else:
+    # ログアウトボタン
+    if st.sidebar.button("ログアウト"):    
+        st.session_state['user'] = None
+        st.session_state['role'] = None
+        st.experimental_rerun()
+
     menu = ["ダッシュボード", "取得リスト管理", "請求管理"]
     if st.session_state['role'] == 'owner':
         menu.append('メンバー管理')
