@@ -173,6 +173,7 @@ def login_page():
         if token:
             st.session_state['token'] = token
             st.session_state['user_name'] = name
+            st.session_state['user'] = name
             payload = decode_access_token(token)
             st.session_state['role'] = payload.get('role')
             st.success(f"ようこそ、{name} さん！")
