@@ -8,11 +8,13 @@ import pandas as pd
 from io import StringIO
 import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import bcrypt
 import re
 import jwt
+
+JST = timezone(timedelta(hours=9))  # 日本時間のタイムゾーン
 
 # Secrets／環境変数から得たパス文字列
 raw_csv_path = st.secrets["KEN_ALL_CSV_PATH"]
@@ -99,9 +101,9 @@ def verify_password(password: str, pw_hash: bytes) -> bool:
 def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(JST) + expires_delta  # 日本時間で現在時刻＋有効期限
     else:
-        expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
+        expire = datetime.now(JST) + timedelta(minutes=JWT_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=JWT_ALGORITHM)
 
