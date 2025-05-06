@@ -10,6 +10,9 @@ import json
 import sqlite3
 import datetime
 import hashlib
+import bcrypt
+import re
+import jwt
 
 # Secrets／環境変数から得たパス文字列
 raw_csv_path = st.secrets["KEN_ALL_CSV_PATH"]
@@ -31,7 +34,10 @@ sa_info = st.secrets["gcp_service_account"]
 # AttrDict を通常の dict に変換してから JSON に
 os.environ["GCP_SA_INFO_JSON"] = json.dumps(dict(sa_info))
 
-
+# --- 定数 ---
+SECRET_KEY = os.getenv('JWT_SECRET', 'your-very-secret-key')
+JWT_ALGORITHM = 'HS256'
+JWT_EXPIRE_MINUTES = 60
 
 # カスタムモジュールのインポート
 from scripts.extract_info_from_pdf import ocr_pdf, extract_registry_office
@@ -75,27 +81,72 @@ def init_db():
 
 conn = init_db()
 
+# --- 入力バリデーション ---
+def validate_email(email: str) -> bool:
+    pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+    return re.match(pattern, email) is not None
+
 # --- 認証ヘルパー ---
-def hash_password(password: str) -> str:
-    """パスワードを SHA256 でハッシュ化して返す"""
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
-def register_user(email, password):
+def hash_password(password: str) -> bytes:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+
+def verify_password(password: str, pw_hash: bytes) -> bool:
+    return bcrypt.checkpw(password.encode('utf-8'), pw_hash)
+
+
+def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def decode_access_token(token: str) -> dict | None:
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
+    except jwt.PyJWTError:
+        return None
+
+
+def register_user(name: str, email: str, password: str) -> tuple[bool, str]:
+    if not name.strip():
+        return False, "氏名を入力してください。"
+    if not validate_email(email):
+        return False, "有効なメールアドレスを入力してください。"
+    if len(password) < 6:
+        return False, "パスワードは6文字以上で設定してください。"
     c = conn.cursor()
     try:
-        c.execute("INSERT INTO users (email, password, role) VALUES (?, ?, ?)", (email, password, 'member'))
+        pw_hash = hash_password(password)
+        c.execute(
+            "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
+            (name.strip(), email.strip(), pw_hash, 'member')
+        )
         conn.commit()
-        return True
+        return True, "登録が完了しました。ログインしてください。"
     except sqlite3.IntegrityError:
-        return False
+        return False, "このメールアドレスは既に登録されています。"
 
 
-def authenticate_user(email, password):
+def authenticate_user(email: str, password: str) -> tuple[str | None, str | None]:
     c = conn.cursor()
-    c.execute("SELECT role FROM users WHERE email=? AND password=?", (email, password))
+    c.execute("SELECT id, name, password_hash, role FROM users WHERE email=?", (email.strip(),))
     row = c.fetchone()
-    if row:
-        return row[0]
-    return None
+    if row and verify_password(password, row[2]):
+        user_id, name, _, role = row
+        token = create_access_token({"user_id": user_id, "email": email, "role": role})
+        return token, name
+    return None, None
+
+# --- セッション管理 ---
+if 'token' not in st.session_state:
+    st.session_state['token'] = None
+    st.session_state['user_name'] = None
+    st.session_state['role'] = None
 
 
 
@@ -115,13 +166,36 @@ def login_page():
         password = st.text_input("パスワード", type="password")
         submitted = st.form_submit_button("ログイン")
     if submitted:
-        role = authenticate_user(email, password)
-        if role:
-            st.session_state['user'] = email
-            st.session_state['role'] = role
+        token, name = authenticate_user(email, password)
+        if token:
+            st.session_state['token'] = token
+            st.session_state['user_name'] = name
+            payload = decode_access_token(token)
+            st.session_state['role'] = payload.get('role')
+            st.success(f"ようこそ、{name} さん！")
             st.experimental_rerun()
         else:
-            st.error("認証に失敗しました。メールアドレスかパスワードを確認してください。")
+            st.error("メールアドレスまたはパスワードが正しくありません。")
+
+
+def signup_page():
+    st.title("新規登録")
+    with st.form("signup_form"):
+        name = st.text_input("氏名")
+        email = st.text_input("メールアドレス")
+        password = st.text_input("パスワード", type="password")
+        password2 = st.text_input("パスワード（確認）", type="password")
+        submitted = st.form_submit_button("登録")
+    if submitted:
+        if password != password2:
+            st.error("パスワードが一致しません。再度ご確認ください。")
+        else:
+            success, msg = register_user(name, email, password)
+            if success:
+                st.success(msg)
+                st.experimental_rerun()
+            else:
+                st.error(msg)
 
 def signup_page():
     st.title("新規登録")
@@ -137,6 +211,11 @@ def signup_page():
             st.success("登録が完了しました。ログインしてください。")
         else:
             st.error("このメールアドレスはすでに登録されています。")
+
+# --- ログアウト ---
+def logout():
+    st.session_state.clear()
+    st.experimental_rerun()
 
 # --- ダッシュボード ---
 def dashboard_page():
@@ -259,6 +338,7 @@ else:
         st.session_state['user'] = None
         st.session_state['role'] = None
         st.experimental_rerun()
+        logout()
 
     menu = ["ダッシュボード", "取得リスト管理", "請求管理"]
     if st.session_state['role'] == 'owner':
