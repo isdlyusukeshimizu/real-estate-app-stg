@@ -174,7 +174,7 @@ def login_page():
             payload = decode_access_token(token)
             st.session_state['role'] = payload.get('role')
             st.success(f"ようこそ、{name} さん！")
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("メールアドレスまたはパスワードが正しくありません。")
 
@@ -198,7 +198,7 @@ def signup_page():
 # --- ログアウト ---
 def logout():
     st.session_state.clear()
-    st.experimental_rerun()
+    st.rerun()
 
 # --- ダッシュボード ---
 def dashboard_page():
@@ -291,7 +291,7 @@ def billing_page():
         conn.execute("INSERT INTO billing (created_at, description, amount) VALUES (?,?,?)", (now, desc, amt))
         conn.commit()
         st.success("請求を登録しました。")
-        st.experimental_rerun()
+        st.rerun()
 
 # --- メンバー管理 ---
 def member_page():
@@ -320,7 +320,7 @@ else:
     if st.sidebar.button("ログアウト"):    
         st.session_state['user'] = None
         st.session_state['role'] = None
-        st.experimental_rerun()
+        st.rerun()
         logout()
 
     menu = ["ダッシュボード", "取得リスト管理", "請求管理"]
