@@ -148,8 +148,13 @@ def authenticate_user(email: str, password: str) -> tuple[str | None, str | None
 # --- セッション管理 ---
 if 'token' not in st.session_state:
     st.session_state['token'] = None
+if 'user_name' not in st.session_state:
     st.session_state['user_name'] = None
+if 'role' not in st.session_state:
     st.session_state['role'] = None
+if 'user' not in st.session_state:
+    st.session_state['user'] = None
+
 
 
 
