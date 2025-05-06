@@ -40,7 +40,7 @@ from scripts.merge_data import merge_data
 # ページ設定
 st.set_page_config(page_title="不動産相続情報取得システム", layout="wide")
 
-st.title("不動産相続情報 PoC")
+st.title("不動産相続情報システム")
 st.text(f"土日祝日は18時～翌朝8時30分、平日は23時～翌朝8時30分、年末年始は終日(12/29～1/3)の時間は本システムの利用が出来ません。")
 
 # PDF アップロード
